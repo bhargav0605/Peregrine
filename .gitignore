@@ -1,0 +1,7 @@
+# Build output
+/bin/
+client/target/
+
+# Ground truth is a per-run answer key, not source. Committing it would also
+# make it far too easy for something to start reading it.
+*.jsonl
