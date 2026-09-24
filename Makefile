@@ -22,6 +22,7 @@ help:
 	@echo "  make build-client   build the Java client into $(CLIENT_JAR)"
 	@echo "  make run-broker     build and run the broker"
 	@echo "  make run-client     build and run the client"
+	@echo "  make run-client-http build and run the client in manual-order mode (POST /orders)"
 	@echo "  make test-broker    run Go tests"
 	@echo "  make test-client    run Java tests"
 	@echo
@@ -51,6 +52,12 @@ run-broker: build-broker
 .PHONY: run-client
 run-client: build-client
 	java -jar $(CLIENT_JAR) --config $(CLIENT_DIR)/client.cfg
+
+# --http replaces the automatic timer loop: orders come only from POST /orders,
+# for firing exactly one order at a moment you choose (see bruno/).
+.PHONY: run-client-http
+run-client-http: build-client
+	java -jar $(CLIENT_JAR) --config $(CLIENT_DIR)/client.cfg --http 8080
 
 .PHONY: test
 test: test-broker test-client

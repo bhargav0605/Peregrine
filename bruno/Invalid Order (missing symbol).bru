@@ -1,0 +1,23 @@
+meta {
+  name: Invalid Order (missing symbol)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/orders
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "side": "BUY",
+    "qty": 100,
+    "price": 220.50
+  }
+}

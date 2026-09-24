@@ -1,0 +1,24 @@
+meta {
+  name: Send Sell Order
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/orders
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "symbol": "MSFT",
+    "side": "SELL",
+    "qty": 50,
+    "price": 412.75
+  }
+}
