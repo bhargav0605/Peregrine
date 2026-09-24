@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>dev.bhargavparmar.peregrine</groupId>
+  <artifactId>client</artifactId>
+  <version>0.1.0</version>
+  <packaging>jar</packaging>
+
+  <name>Peregrine trading client</name>
+  <description>
+    The trading application Peregrine observes. A JVM process with a real
+    syscall path into the kernel, which is what makes the evidence meaningful.
+  </description>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!-- One build has to run on the JDK 11 dev machine and on aether, which
+         will have 21 or later. -->
+    <maven.compiler.release>11</maven.compiler.release>
+
+    <quickfixj.version>2.3.2</quickfixj.version>
+    <opentelemetry.version>1.66.0</opentelemetry.version>
+    <opentelemetry.semconv.version>1.44.0</opentelemetry.semconv.version>
+    <jackson.version>2.18.3</jackson.version>
+    <slf4j.version>2.0.17</slf4j.version>
+    <logback.version>1.5.18</logback.version>
+    <logstash.encoder.version>8.1</logstash.encoder.version>
+    <junit.version>5.10.2</junit.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.opentelemetry</groupId>
+        <artifactId>opentelemetry-bom</artifactId>
+        <version>${opentelemetry.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+    <!-- Declared directly to win over QuickFIX/J's transitive slf4j-api 1.7.30.
+         Logback 1.5 needs the 2.x API, and without this Maven's nearest-wins
+         picks 1.7 and the fluent addKeyValue calls will not compile. -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>${slf4j.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.quickfixj</groupId>
+      <artifactId>quickfixj-core</artifactId>
+      <version>${quickfixj.version}</version>
+    </dependency>
+
+    <!-- Only the FIX 4.4 dictionary, not quickfixj-all: the session has to
+         parse FIX 4.4 messages, and nothing here speaks another version. -->
+    <dependency>
+      <groupId>org.quickfixj</groupId>
+      <artifactId>quickfixj-messages-fix44</artifactId>
+      <version>${quickfixj.version}</version>
+    </dependency>
+
+    <!-- Logback 1.5 ships a built-in JsonEncoder, so structured JSON needs no
+         third-party encoder. -->
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>${logback.version}</version>
+    </dependency>
+
+    <!-- Logback's built-in JsonEncoder nests key-value pairs and names fields
+         differently from the Go side. This encoder flattens them and renames
+         the fields, so one jq expression works across both components. -->
+    <dependency>
+      <groupId>net.logstash.logback</groupId>
+      <artifactId>logstash-logback-encoder</artifactId>
+      <version>${logstash.encoder.version}</version>
+    </dependency>
+
+    <!-- Manual SDK, not the -javaagent: a span written by hand is a span whose
+         contents are known, and that matters more here than auto-coverage. -->
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk</artifactId>
+    </dependency>
+
+    <!-- Console-only for now. Prints via java.util.logging, which defaults to
+         stderr, so it stays out of the JSON stream on stdout. -->
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-exporter-logging</artifactId>
+    </dependency>
+
+    <!-- Attribute key constants (network.peer.address and similar) rather than
+         hand-typed strings that can drift from the spec. -->
+    <dependency>
+      <groupId>io.opentelemetry.semconv</groupId>
+      <artifactId>opentelemetry-semconv</artifactId>
+      <version>${opentelemetry.semconv.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- InMemorySpanExporter, for asserting span name/attributes/status without
+         a collector. -->
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-testing</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Declared explicitly at the version already pulled in transitively by
+         the logstash encoder, so the /orders JSON body does not depend on an
+         undeclared dependency that could change out from under it. -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>client</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.2.5</version>
+      </plugin>
+
+      <!-- One runnable jar with dependencies inside, so running it needs no
+           classpath assembly. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.5.3</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals><goal>shade</goal></goals>
+            <configuration>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>dev.bhargavparmar.peregrine.client.Main</mainClass>
+                </transformer>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+              </transformers>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                    <exclude>module-info.class</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

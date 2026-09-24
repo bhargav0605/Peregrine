@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+  <!-- Field names match the Go broker's slog output so a single jq expression
+       reads both sides: {"time":..,"level":..,"msg":..,<flat fields>} -->
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+      <fieldNames>
+        <timestamp>time</timestamp>
+        <message>msg</message>
+        <thread>thread</thread>
+        <logger>[ignore]</logger>
+        <version>[ignore]</version>
+        <levelValue>[ignore]</levelValue>
+      </fieldNames>
+    </encoder>
+  </appender>
+
+  <!-- Raw FIX messages from the engine. Hidden by default so the application's
+       own events stay readable; show them with -Dfix.log.level=INFO -->
+  <logger name="quickfixj.msg.incoming" level="${fix.log.level:-WARN}"/>
+  <logger name="quickfixj.msg.outgoing" level="${fix.log.level:-WARN}"/>
+
+  <!-- Session-level engine events: logon, logout, disconnect, resend. -->
+  <logger name="quickfixj.event" level="INFO"/>
+
+  <root level="INFO">
+    <appender-ref ref="STDOUT"/>
+  </root>
+</configuration>
